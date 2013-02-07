@@ -1,7 +1,5 @@
 package edu.brown.cs.systems.cputemp.services;
 
-import java.io.IOException;
-
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -15,12 +13,8 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
-
-import com.stericson.RootTools.CommandCapture;
-import com.stericson.RootTools.RootTools;
-import com.stericson.RootTools.Shell;
-
 import edu.brown.cs.systems.cputemp.ui.MainActivity;
+import edu.brown.cs.systems.cputemp.utils.KernelParameterIO;
 
 public class TemperatureControllerService extends Service {
 
@@ -28,7 +22,7 @@ public class TemperatureControllerService extends Service {
     private boolean enabled;
     private int maxTemperature = DEFAULT_TEMPERATURE;
     private int injectionProb = DEFAULT_INJECTION_PROBABILITY;
-    private int taskInterval = 60;
+    private int taskInterval = 60; /* seconds */
 
     private static final String SYSFS_ENABLE_PATH = "/sys/....";
     private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/....";
@@ -42,26 +36,17 @@ public class TemperatureControllerService extends Service {
     public static final int MAX_TEMPERATURE = 100;
     public static final int MIN_TEMPERATURE = 0;
 
-    private Shell shell;
-    private String cmdReturn;
+    private KernelParameterIO kernelIO;
+    private PendingIntent sender; // recurring UI update task
 
-    private PendingIntent sender; // recurring calibration task
     public static final String TEMP_CONTROL_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL";
     public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.UPDATE_UI";
 
     @Override
     public void onCreate() {
         super.onCreate();
-        try {
-            shell = RootTools.getShell(true);
-        } catch (Exception e) {
-            Log.e(TAG, "Can't access shell. Service stopped.");
-            e.printStackTrace();
-            Toast.makeText(this, "Can't access shell", Toast.LENGTH_SHORT)
-                    .show();
-            stopSelf();
-        }
 
+        kernelIO = KernelParameterIO.getInstance();
         enabled = isIdleInjecting();
         maxTemperature = getMaxTemperature();
         Log.d(TAG, "onCreate()");
@@ -71,15 +56,7 @@ public class TemperatureControllerService extends Service {
     public void onDestroy() {
         super.onDestroy();
 
-        if (shell != null) {
-            try {
-                shell.close();
-            } catch (IOException e) {
-                Log.e(TAG, "Can't close shell");
-                e.printStackTrace();
-            }
-        }
-
+        kernelIO.release();
         Log.d(TAG, "onDestroy()");
     }
 
@@ -103,19 +80,19 @@ public class TemperatureControllerService extends Service {
     }
 
     public boolean isIdleInjecting() {
-        String ans = readSysFs(SYSFS_ENABLE_PATH);
+        String ans = kernelIO.readSysFs(SYSFS_ENABLE_PATH);
         return ((ans != null && ans.equals("1")) ? true : false);
     }
 
     private boolean switchIdleInjection(boolean onOff) {
         boolean ret = false;
-        if (ret = writeSysFs(SYSFS_ENABLE_PATH, onOff ? "1" : "0"))
+        if (ret = kernelIO.writeSysFs(SYSFS_ENABLE_PATH, onOff ? "1" : "0"))
             enabled = onOff;
         return ret;
     }
 
     public int getCurrentTemperature() {
-        String ans = readSysFs(SYSFS_CURRENT_TEMP_PATH);
+        String ans = kernelIO.readSysFs(SYSFS_CURRENT_TEMP_PATH);
         return (ans != null ? Integer.parseInt(ans) : -1);
     }
 
@@ -124,13 +101,13 @@ public class TemperatureControllerService extends Service {
     }
 
     public int getInjectionProbability() {
-        String ans = readSysFs(SYSFS_INJECTION_PROB_PATH);
+        String ans = kernelIO.readSysFs(SYSFS_INJECTION_PROB_PATH);
         return (ans != null ? Integer.parseInt(ans) : 0);
     }
 
     private void setInjectionProbability(int injectProb) {
         assert injectionProb >= 0 : injectionProb;
-        if (writeSysFs(SYSFS_INJECTION_PROB_PATH,
+        if (kernelIO.writeSysFs(SYSFS_INJECTION_PROB_PATH,
                 Integer.toString(injectionProb))) {
             this.injectionProb = injectProb;
         } else {
@@ -138,75 +115,6 @@ public class TemperatureControllerService extends Service {
                     "Can't change injection probability", Toast.LENGTH_SHORT)
                     .show();
         }
-    }
-
-    private String readSysFs(String path) {
-        if (RootTools.isRootAvailable()) {
-            if (RootTools.isAccessGiven()) {
-                CommandCapture command = new CommandCapture(0, "cat " + path) {
-                    @Override
-                    public void output(int id, String line) {
-                        cmdReturn = line;
-                    }
-                };
-
-                try {
-                    shell.add(command).waitForFinish();
-                    // If cat succeeds, it returns 0; 1 otherwise
-                    if (command.exitCode() != 0)
-                        return null;
-                } catch (Exception e) {
-                    Log.e(TAG,
-                            "Error running shell command: "
-                                    + command.getCommand());
-                }
-            } else {
-                Toast.makeText(TemperatureControllerService.this,
-                        "Controller requires root access to work",
-                        Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(TemperatureControllerService.this,
-                    "Controller only works on rooted devices",
-                    Toast.LENGTH_SHORT).show();
-        }
-
-        return cmdReturn;
-    }
-
-    private boolean writeSysFs(String path, String value) {
-        if (RootTools.isRootAvailable()) {
-            if (RootTools.isAccessGiven()) {
-                CommandCapture command = new CommandCapture(0, "echo " + value
-                        + " > " + path) {
-                    @Override
-                    public void output(int id, String line) {
-                        cmdReturn = line;
-                    }
-                };
-
-                try {
-                    shell.add(command).waitForFinish();
-                } catch (Exception e) {
-                    Log.e(TAG,
-                            "Error running shell command: "
-                                    + command.getCommand());
-                    Toast.makeText(TemperatureControllerService.this,
-                            "Shell command failed", Toast.LENGTH_SHORT).show();
-                    e.printStackTrace();
-                }
-            } else {
-                Toast.makeText(TemperatureControllerService.this,
-                        "Controller requires root access to work",
-                        Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(TemperatureControllerService.this,
-                    "Controller only works on rooted devices",
-                    Toast.LENGTH_SHORT).show();
-        }
-
-        return (cmdReturn.equals("0") ? true : false);
     }
 
     @Override
