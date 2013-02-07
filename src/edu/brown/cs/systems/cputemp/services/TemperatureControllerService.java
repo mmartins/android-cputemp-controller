@@ -26,12 +26,19 @@ public class TemperatureControllerService extends Service {
 
     private static final String TAG = "TemperatureControllerService";
     private boolean enabled;
-    private long maxTemperature;
+    private long maxTemperature = DEFAULT_TEMPERATURE;
+    private int injectionProb = DEFAULT_INJECTION_PROBABILITY;
     private int taskInterval = 60;
 
     private static final String SYSFS_ENABLE_PATH = "/sys/....";
     private static final String SYSFS_MAX_TEMP_PATH = "/sys/....";
     private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/....";
+    private static final String SYSFS_INJECTION_PROB_PATH = "/sys/....";
+
+    public static final int DEFAULT_INJECTION_PROBABILITY = 0;
+    public static final int INJECTION_INCREASE_STEP = 2;
+    public static final int INJECTION_DECREASE_STEP = 1;
+
     public static final int DEFAULT_TEMPERATURE = 60;
     public static final int MAX_TEMPERATURE = 100;
     public static final int MIN_TEMPERATURE = 0;
@@ -128,8 +135,24 @@ public class TemperatureControllerService extends Service {
         }
     }
 
-    String readSysFs(String path) {
+    public int getInjectionProbability() {
+        String ans = readSysFs(SYSFS_INJECTION_PROB_PATH);
+        return (ans != null ? Integer.parseInt(ans) : 0);
+    }
 
+    public void setInjectionProbability(int injectProb) {
+        assert injectionProb >= 0 : injectionProb;
+        if (writeSysFs(SYSFS_INJECTION_PROB_PATH,
+                Integer.toString(injectionProb))) {
+            this.injectionProb = injectProb;
+        } else {
+            Toast.makeText(TemperatureControllerService.this,
+                    "Can't change injection probability", Toast.LENGTH_SHORT)
+                    .show();
+        }
+    }
+
+    String readSysFs(String path) {
         if (RootTools.isRootAvailable()) {
             if (RootTools.isAccessGiven()) {
                 CommandCapture command = new CommandCapture(0, "cat " + path) {
@@ -164,7 +187,6 @@ public class TemperatureControllerService extends Service {
     }
 
     boolean writeSysFs(String path, String value) {
-
         if (RootTools.isRootAvailable()) {
             if (RootTools.isAccessGiven()) {
                 CommandCapture command = new CommandCapture(0, "echo " + value
@@ -238,6 +260,7 @@ public class TemperatureControllerService extends Service {
                 .getDefaultSharedPreferences(TemperatureControllerService.this);
         SharedPreferences.Editor editor = preferences.edit();
 
+        injectionProb = DEFAULT_INJECTION_PROBABILITY;
         // Make sure service won't be running next time we open the application
         editor.putBoolean("enabled", false);
         editor.commit();
@@ -251,6 +274,7 @@ public class TemperatureControllerService extends Service {
             long battTemp = getBatteryTemperature();
             long cpuTemp = getCurrentTemperature();
             updateInterface(battTemp, cpuTemp);
+            updateControl(battTemp, cpuTemp);
         }
 
         private long getBatteryTemperature() {
@@ -274,6 +298,23 @@ public class TemperatureControllerService extends Service {
             intent.putExtra("battTemp", battTemp);
             intent.putExtra("cpuTemp", cpuTemp);
             sendBroadcast(intent);
+        }
+
+        /*
+         * Control injection probability using exponential-backoff-like
+         * mechanism
+         */
+        private void updateControl(long battTemp, long cpuTemp) {
+            int prob = injectionProb;
+
+            if (cpuTemp >= maxTemperature) {
+                prob = prob > 0 ? prob * INJECTION_INCREASE_STEP : 1;
+            } else {
+                prob = prob > 0 ? prob - INJECTION_DECREASE_STEP
+                        : DEFAULT_INJECTION_PROBABILITY;
+            }
+
+            setInjectionProbability(prob);
         }
     }
 }
