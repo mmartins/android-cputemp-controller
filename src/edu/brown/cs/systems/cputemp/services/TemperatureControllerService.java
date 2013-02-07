@@ -2,9 +2,17 @@ package edu.brown.cs.systems.cputemp.services;
 
 import java.io.IOException;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.os.BatteryManager;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -12,18 +20,28 @@ import com.stericson.RootTools.CommandCapture;
 import com.stericson.RootTools.RootTools;
 import com.stericson.RootTools.Shell;
 
+import edu.brown.cs.systems.cputemp.ui.MainActivity;
+
 public class TemperatureControllerService extends Service {
 
     private static final String TAG = "TemperatureControllerService";
     private boolean enabled;
-    private int maxTemperature;
+    private long maxTemperature;
+    private int taskInterval = 60;
 
     private static final String SYSFS_ENABLE_PATH = "/sys/....";
-    private static final String SYSFS_TEMPERATURE_PATH = "/sys/....";
+    private static final String SYSFS_MAX_TEMP_PATH = "/sys/....";
+    private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/....";
     public static final int DEFAULT_TEMPERATURE = 60;
+    public static final int MAX_TEMPERATURE = 100;
+    public static final int MIN_TEMPERATURE = 0;
 
     private Shell shell;
     private String cmdReturn;
+
+    private PendingIntent sender; // recurring calibration task
+    public static final String TEMP_CONTROL_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL";
+    public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.UPDATE_UI";
 
     @Override
     public void onCreate() {
@@ -62,15 +80,20 @@ public class TemperatureControllerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand");
-        enabled = intent.getBooleanExtra("enabled", false);
-        maxTemperature = intent.getIntExtra("maxTemp", DEFAULT_TEMPERATURE);
+        if (intent.getAction().matches(TEMP_CONTROL_ACTION)) {
+            enabled = intent.getBooleanExtra("enabled", false);
+            maxTemperature = intent.getIntExtra("maxCpuTemp",
+                    DEFAULT_TEMPERATURE);
 
-        switchIdleInjection(enabled);
+            if (enabled)
+                startTemperatureController(maxTemperature);
+            else
+                stopTemperatureController();
+        }
 
-        if (enabled)
-            setMaxTemperature(maxTemperature);
-
-        return START_NOT_STICKY;
+        // We want this service to continue running until it is explicitly
+        // stopped, so return sticky.
+        return START_STICKY;
     }
 
     public boolean isIdleInjecting() {
@@ -85,14 +108,19 @@ public class TemperatureControllerService extends Service {
         return ret;
     }
 
-    public int getMaxTemperature() {
-        String ans = readSysFs(SYSFS_TEMPERATURE_PATH);
-        return (ans != null ? Integer.parseInt(ans) : -1);
+    public long getCurrentTemperature() {
+        String ans = readSysFs(SYSFS_CURRENT_TEMP_PATH);
+        return (ans != null ? Long.parseLong(ans) : -1L);
     }
 
-    public void setMaxTemperature(int maxTemperature) {
+    public long getMaxTemperature() {
+        String ans = readSysFs(SYSFS_MAX_TEMP_PATH);
+        return (ans != null ? Long.parseLong(ans) : -1L);
+    }
+
+    public void setMaxTemperature(long maxTemperature) {
         assert maxTemperature > 0 : maxTemperature;
-        if (writeSysFs(SYSFS_TEMPERATURE_PATH, Integer.toString(maxTemperature))) {
+        if (writeSysFs(SYSFS_MAX_TEMP_PATH, Long.toString(maxTemperature))) {
             this.maxTemperature = maxTemperature;
         } else {
             Toast.makeText(TemperatureControllerService.this,
@@ -175,5 +203,77 @@ public class TemperatureControllerService extends Service {
     public IBinder onBind(Intent arg0) {
         // TODO Auto-generated method stub
         return null;
+    }
+
+    public void startTemperatureController(long tempThreshold) {
+        Log.d(TAG, "startTemperatureController");
+
+        switchIdleInjection(enabled);
+        setMaxTemperature(tempThreshold);
+
+        Intent intent = new Intent(TemperatureControllerService.this,
+                AlarmReceiver.class);
+        sender = PendingIntent.getBroadcast(TemperatureControllerService.this,
+                0, intent, PendingIntent.FLAG_CANCEL_CURRENT);
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        am.setRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(),
+                taskInterval, sender);
+
+        SharedPreferences preferences = PreferenceManager
+                .getDefaultSharedPreferences(TemperatureControllerService.this);
+        SharedPreferences.Editor editor = preferences.edit();
+
+        // Make sure services won't be running next time we open the application
+        editor.putBoolean("enabled", true);
+        editor.commit();
+
+    }
+
+    public void stopTemperatureController() {
+        Log.d(TAG, "stopTemperatureController");
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        am.cancel(sender);
+
+        SharedPreferences preferences = PreferenceManager
+                .getDefaultSharedPreferences(TemperatureControllerService.this);
+        SharedPreferences.Editor editor = preferences.edit();
+
+        // Make sure service won't be running next time we open the application
+        editor.putBoolean("enabled", false);
+        editor.commit();
+    }
+
+    class AlarmReceiver extends BroadcastReceiver {
+        private long battTemperature = -1;
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            long battTemp = getBatteryTemperature();
+            long cpuTemp = getCurrentTemperature();
+            updateInterface(battTemp, cpuTemp);
+        }
+
+        private long getBatteryTemperature() {
+            Intent intent = getApplicationContext().registerReceiver(null,
+                    new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+
+            // Register application when it's installed
+            if (intent.getAction().equals(Intent.ACTION_BATTERY_CHANGED)) {
+                battTemperature = intent.getIntExtra(
+                        BatteryManager.EXTRA_TEMPERATURE, -1);
+            }
+
+            return battTemperature;
+        }
+
+        private void updateInterface(long battTemp, long cpuTemp) {
+            Intent intent = new Intent(TemperatureControllerService.this,
+                    MainActivity.class);
+
+            intent.setAction(UPDATE_UI_ACTION);
+            intent.putExtra("battTemp", battTemp);
+            intent.putExtra("cpuTemp", cpuTemp);
+            sendBroadcast(intent);
+        }
     }
 }
