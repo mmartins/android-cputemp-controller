@@ -26,7 +26,7 @@ public class TemperatureControllerService extends Service {
 
     private static final String TAG = "TemperatureControllerService";
     private boolean enabled;
-    private long maxTemperature = DEFAULT_TEMPERATURE;
+    private int maxTemperature = DEFAULT_TEMPERATURE;
     private int injectionProb = DEFAULT_INJECTION_PROBABILITY;
     private int taskInterval = 60;
 
@@ -114,12 +114,12 @@ public class TemperatureControllerService extends Service {
         return ret;
     }
 
-    public long getCurrentTemperature() {
+    public int getCurrentTemperature() {
         String ans = readSysFs(SYSFS_CURRENT_TEMP_PATH);
-        return (ans != null ? Long.parseLong(ans) : -1L);
+        return (ans != null ? Integer.parseInt(ans) : -1);
     }
 
-    public long getMaxTemperature() {
+    public int getMaxTemperature() {
         return maxTemperature;
     }
 
@@ -215,7 +215,7 @@ public class TemperatureControllerService extends Service {
         return null;
     }
 
-    private void startTemperatureController(long tempThreshold) {
+    private void startTemperatureController(int tempThreshold) {
         Log.d(TAG, "startTemperatureController");
 
         switchIdleInjection(enabled);
@@ -255,17 +255,17 @@ public class TemperatureControllerService extends Service {
     }
 
     class AlarmReceiver extends BroadcastReceiver {
-        private long battTemperature = -1;
+        private int battTemperature = -1;
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            long battTemp = getBatteryTemperature();
-            long cpuTemp = getCurrentTemperature();
+            int battTemp = getBatteryTemperature();
+            int cpuTemp = getCurrentTemperature();
             updateInterface(battTemp, cpuTemp);
             updateControl(battTemp, cpuTemp);
         }
 
-        private long getBatteryTemperature() {
+        private int getBatteryTemperature() {
             Intent intent = getApplicationContext().registerReceiver(null,
                     new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
 
@@ -278,7 +278,7 @@ public class TemperatureControllerService extends Service {
             return battTemperature;
         }
 
-        private void updateInterface(long battTemp, long cpuTemp) {
+        private void updateInterface(int battTemp, int cpuTemp) {
             Intent intent = new Intent(TemperatureControllerService.this,
                     MainActivity.class);
 
@@ -292,7 +292,7 @@ public class TemperatureControllerService extends Service {
          * Control injection probability using exponential-backoff-like
          * mechanism
          */
-        private void updateControl(long battTemp, long cpuTemp) {
+        private void updateControl(int battTemp, int cpuTemp) {
             int prob = injectionProb;
 
             if (cpuTemp >= maxTemperature) {
