@@ -43,13 +43,13 @@
         android:layout_margin="5dip" >
 
         <TextView
-            android:id="@+id/currTempLabel"
+            android:id="@+id/currCpuTempLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/curr_temp_label" />
+            android:text="@string/curr_cpu_temp_label" />
 
         <TextView
-            android:id="@+id/currTempView"
+            android:id="@+id/currCpuTempView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
     </TableRow>
@@ -61,13 +61,13 @@
         android:layout_margin="5dip" >
 
         <TextView
-            android:id="@+id/temperatureLabel"
+            android:id="@+id/maxCpuTemperatureLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/max_temp_label" />
+            android:text="@string/max_cpu_temp_label" />
 
         <NumberPicker
-            android:id="@+id/temperaturePicker"
+            android:id="@+id/maxCpuTemperaturePicker"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
     </TableRow>

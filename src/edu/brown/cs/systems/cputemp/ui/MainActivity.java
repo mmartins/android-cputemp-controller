@@ -1,23 +1,33 @@
 package edu.brown.cs.systems.cputemp.ui;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.NumberPicker;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 import edu.brown.cs.systems.cputemp.R;
 import edu.brown.cs.systems.cputemp.services.TemperatureControllerService;
 
 public class MainActivity extends Activity {
 
-    private Switch tempControllerSwitch;
-    private NumberPicker temperaturePicker;
+    private Switch tempControllerSwitch; /* enables CPU temperature controller */
+    /* viewer of current battery temperature */
+    private TextView batteryTemperature;
+    private TextView cpuTemperature; /* viewer of current CPU temperature */
+    /* sets CPU temp threshold for controller */
+    private NumberPicker maxCpuTemperaturePicker;
     private Button applyButton;
+    private Intent intent; /* receiver side of temperature-monitoring service */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,12 +35,30 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
 
         tempControllerSwitch = (Switch) findViewById(R.id.injectionSwitch);
-        temperaturePicker = (NumberPicker) findViewById(R.id.temperaturePicker);
+        batteryTemperature = (TextView) findViewById(R.id.battTempView);
+        cpuTemperature = (TextView) findViewById(R.id.currCpuTempView);
+        maxCpuTemperaturePicker = (NumberPicker) findViewById(R.id.maxCpuTemperaturePicker);
         applyButton = (Button) findViewById(R.id.applyButton);
 
-        String[] nums = new String[100];
-        for (int i = 1; i <= nums.length; i++)
-            nums[i - 1] = Integer.toString(i);
+        maxCpuTemperaturePicker
+                .setMaxValue(TemperatureControllerService.MAX_TEMPERATURE);
+        maxCpuTemperaturePicker
+                .setMinValue(TemperatureControllerService.MIN_TEMPERATURE);
+
+        tempControllerSwitch
+                .setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton buttonView,
+                            boolean isChecked) {
+                        Intent intent = new Intent(MainActivity.this,
+                                TemperatureControllerService.class);
+                        intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
+                        intent.putExtra("enabled", isChecked);
+                        intent.putExtra("maxCpuTemp", Integer
+                                .toString(maxCpuTemperaturePicker.getValue()));
+                        startService(intent);
+                    }
+                });
 
         applyButton.setOnClickListener(new View.OnClickListener() {
 
@@ -42,9 +70,10 @@ public class MainActivity extends Activity {
                 } else {
                     Intent intent = new Intent(MainActivity.this,
                             TemperatureControllerService.class);
-                    intent.putExtra("enabled", tempControllerSwitch.isEnabled());
-                    intent.putExtra("maxTemp",
-                            Integer.toString(temperaturePicker.getValue()));
+                    intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
+                    intent.putExtra("enabled", tempControllerSwitch.isChecked());
+                    intent.putExtra("maxTemp", Integer
+                            .toString(maxCpuTemperaturePicker.getValue()));
 
                     startService(intent);
                 }
@@ -57,12 +86,15 @@ public class MainActivity extends Activity {
     public void onPause() {
         super.onPause();
 
+        unregisterReceiver(broadcastReceiver);
+        stopService(intent);
+
         SharedPreferences preferences = PreferenceManager
                 .getDefaultSharedPreferences(MainActivity.this);
         SharedPreferences.Editor editor = preferences.edit();
 
         editor.putBoolean("controllerOn", tempControllerSwitch.isChecked());
-        editor.putInt("temperature", temperaturePicker.getValue());
+        editor.putInt("temperature", maxCpuTemperaturePicker.getValue());
 
         editor.commit();
     }
@@ -72,14 +104,43 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
 
+        startService(intent);
+        registerReceiver(broadcastReceiver, new IntentFilter(
+                TemperatureControllerService.UPDATE_UI_ACTION));
+
         SharedPreferences preferences = PreferenceManager
                 .getDefaultSharedPreferences(MainActivity.this);
 
-        tempControllerSwitch.setEnabled(preferences
-                .getBoolean("controllerOn", false));
-        temperaturePicker.setEnabled(preferences.getBoolean("controllerOn",
+        tempControllerSwitch.setEnabled(preferences.getBoolean("controllerOn",
                 false));
-        temperaturePicker.setValue(preferences.getInt("temperature",
+        maxCpuTemperaturePicker.setEnabled(preferences.getBoolean(
+                "controllerOn", false));
+        maxCpuTemperaturePicker.setValue(preferences.getInt("temperature",
                 TemperatureControllerService.DEFAULT_TEMPERATURE));
     }
+
+    /**
+     * Update UI with temperature value from monitoring service
+     * 
+     * @param intent
+     */
+    private void updateUI(Intent intent) {
+        if (intent.getAction().matches(
+                TemperatureControllerService.UPDATE_UI_ACTION)) {
+            long battTemp = intent.getLongExtra("battTemp", -1);
+            long cpuTemp = intent.getIntExtra("cpuTemp", -1);
+
+            batteryTemperature.setText(battTemp != -1 ? Long.toString(battTemp)
+                    : "NOT AVAILABLE");
+            cpuTemperature.setText(cpuTemp != -1 ? Long.toString(cpuTemp)
+                    : "NOT AVAILABLE");
+        }
+    }
+
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateUI(intent);
+        }
+    };
 }
