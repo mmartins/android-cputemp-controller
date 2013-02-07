@@ -31,13 +31,12 @@ public class TemperatureControllerService extends Service {
     private int taskInterval = 60;
 
     private static final String SYSFS_ENABLE_PATH = "/sys/....";
-    private static final String SYSFS_MAX_TEMP_PATH = "/sys/....";
     private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/....";
     private static final String SYSFS_INJECTION_PROB_PATH = "/sys/....";
 
-    public static final int DEFAULT_INJECTION_PROBABILITY = 0;
-    public static final int INJECTION_INCREASE_STEP = 2;
-    public static final int INJECTION_DECREASE_STEP = 1;
+    private static final int DEFAULT_INJECTION_PROBABILITY = 0;
+    private static final int INJECTION_INCREASE_STEP = 2;
+    private static final int INJECTION_DECREASE_STEP = 1;
 
     public static final int DEFAULT_TEMPERATURE = 60;
     public static final int MAX_TEMPERATURE = 100;
@@ -108,7 +107,7 @@ public class TemperatureControllerService extends Service {
         return ((ans != null && ans.equals("1")) ? true : false);
     }
 
-    public boolean switchIdleInjection(boolean onOff) {
+    private boolean switchIdleInjection(boolean onOff) {
         boolean ret = false;
         if (ret = writeSysFs(SYSFS_ENABLE_PATH, onOff ? "1" : "0"))
             enabled = onOff;
@@ -121,18 +120,7 @@ public class TemperatureControllerService extends Service {
     }
 
     public long getMaxTemperature() {
-        String ans = readSysFs(SYSFS_MAX_TEMP_PATH);
-        return (ans != null ? Long.parseLong(ans) : -1L);
-    }
-
-    public void setMaxTemperature(long maxTemperature) {
-        assert maxTemperature > 0 : maxTemperature;
-        if (writeSysFs(SYSFS_MAX_TEMP_PATH, Long.toString(maxTemperature))) {
-            this.maxTemperature = maxTemperature;
-        } else {
-            Toast.makeText(TemperatureControllerService.this,
-                    "Can't set max temperature", Toast.LENGTH_SHORT).show();
-        }
+        return maxTemperature;
     }
 
     public int getInjectionProbability() {
@@ -140,7 +128,7 @@ public class TemperatureControllerService extends Service {
         return (ans != null ? Integer.parseInt(ans) : 0);
     }
 
-    public void setInjectionProbability(int injectProb) {
+    private void setInjectionProbability(int injectProb) {
         assert injectionProb >= 0 : injectionProb;
         if (writeSysFs(SYSFS_INJECTION_PROB_PATH,
                 Integer.toString(injectionProb))) {
@@ -152,7 +140,7 @@ public class TemperatureControllerService extends Service {
         }
     }
 
-    String readSysFs(String path) {
+    private String readSysFs(String path) {
         if (RootTools.isRootAvailable()) {
             if (RootTools.isAccessGiven()) {
                 CommandCapture command = new CommandCapture(0, "cat " + path) {
@@ -186,7 +174,7 @@ public class TemperatureControllerService extends Service {
         return cmdReturn;
     }
 
-    boolean writeSysFs(String path, String value) {
+    private boolean writeSysFs(String path, String value) {
         if (RootTools.isRootAvailable()) {
             if (RootTools.isAccessGiven()) {
                 CommandCapture command = new CommandCapture(0, "echo " + value
@@ -227,11 +215,11 @@ public class TemperatureControllerService extends Service {
         return null;
     }
 
-    public void startTemperatureController(long tempThreshold) {
+    private void startTemperatureController(long tempThreshold) {
         Log.d(TAG, "startTemperatureController");
 
         switchIdleInjection(enabled);
-        setMaxTemperature(tempThreshold);
+        maxTemperature = tempThreshold;
 
         Intent intent = new Intent(TemperatureControllerService.this,
                 AlarmReceiver.class);
@@ -251,7 +239,7 @@ public class TemperatureControllerService extends Service {
 
     }
 
-    public void stopTemperatureController() {
+    private void stopTemperatureController() {
         Log.d(TAG, "stopTemperatureController");
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         am.cancel(sender);
