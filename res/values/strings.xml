@@ -7,5 +7,6 @@
     <string name="switch_label">CPU Controller</string>
     <string name="max_temp_label">Max CPU temperature (C)</string>
     <string name="curr_temp_label">Current CPU temperature (C)</string>
+    <string name="batt_temp_label">Battery temperature (C)</string>
 
 </resources>
