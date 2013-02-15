@@ -24,9 +24,10 @@ public class TemperatureControllerService extends Service {
     private int injectionProb = DEFAULT_INJECTION_PROBABILITY;
     private int taskInterval = 60; /* seconds */
 
-    private static final String SYSFS_ENABLE_PATH = "/sys/....";
-    private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/....";
-    private static final String SYSFS_INJECTION_PROB_PATH = "/sys/....";
+    private static final String SYSFS_ENABLE_PATH = "/sys/devices/cpu/power/cpuidle_injection_status";
+    private static final String SYSFS_INJECTION_PROB_PATH = "/sys/devices/cpu/power/cpuidle_injection_prob";
+    // OMAP temp sensor is only available for Galaxy Nexus
+    private static final String SYSFS_CURRENT_TEMP_PATH = "/sys/devices/platform/omap/omap_temp_sensor.0/temperature";
 
     private static final int DEFAULT_INJECTION_PROBABILITY = 0;
     private static final int INJECTION_INCREASE_STEP = 2;
