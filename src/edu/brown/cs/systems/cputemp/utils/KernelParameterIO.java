@@ -27,6 +27,9 @@ public class KernelParameterIO {
     public static KernelParameterIO getInstance() {
         if (instance == null) {
             instance = new KernelParameterIO();
+            // If shell can't be started, instance is not completed
+            if (instance.shell == null)
+                instance = null;
         }
 
         return instance;

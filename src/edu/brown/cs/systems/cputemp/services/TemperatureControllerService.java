@@ -48,6 +48,17 @@ public class TemperatureControllerService extends Service {
         super.onCreate();
 
         kernelIO = KernelParameterIO.getInstance();
+
+        // Service depends on working kernel IO.
+        // If we can't get one, destroy service.
+        if (kernelIO == null) {
+            Toast.makeText(TemperatureControllerService.this,
+                    "Can't start kernel I/O. Stopping service",
+                    Toast.LENGTH_SHORT).show();
+            stopSelf();
+            return;
+        }
+
         enabled = isIdleInjecting();
         maxTemperature = getMaxTemperature();
         Log.d(TAG, "onCreate()");
@@ -57,7 +68,9 @@ public class TemperatureControllerService extends Service {
     public void onDestroy() {
         super.onDestroy();
 
-        kernelIO.release();
+        if (kernelIO != null)
+            kernelIO.release();
+
         Log.d(TAG, "onDestroy()");
     }
 
@@ -68,6 +81,10 @@ public class TemperatureControllerService extends Service {
             enabled = intent.getBooleanExtra("enabled", false);
             maxTemperature = intent.getIntExtra("maxCpuTemp",
                     DEFAULT_TEMPERATURE);
+
+            // Service failed to start correctly. Return immediately.
+            if (kernelIO == null)
+                return START_NOT_STICKY;
 
             if (enabled)
                 startTemperatureController(maxTemperature);
