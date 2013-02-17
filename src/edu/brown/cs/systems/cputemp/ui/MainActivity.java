@@ -27,7 +27,6 @@ public class MainActivity extends Activity {
     /* sets CPU temp threshold for controller */
     private NumberPicker maxCpuTemperaturePicker;
     private Button applyButton;
-    private Intent intent; /* receiver side of temperature-monitoring service */
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,7 +46,6 @@ public class MainActivity extends Activity {
 
         tempControllerSwitch
                 .setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                    @Override
                     public void onCheckedChanged(CompoundButton buttonView,
                             boolean isChecked) {
                         Intent intent = new Intent(MainActivity.this,
@@ -87,7 +85,6 @@ public class MainActivity extends Activity {
         super.onPause();
 
         unregisterReceiver(broadcastReceiver);
-        stopService(intent);
 
         SharedPreferences preferences = PreferenceManager
                 .getDefaultSharedPreferences(MainActivity.this);
@@ -104,7 +101,6 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        startService(intent);
         registerReceiver(broadcastReceiver, new IntentFilter(
                 TemperatureControllerService.UPDATE_UI_ACTION));
 
