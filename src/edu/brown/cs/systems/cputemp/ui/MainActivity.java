@@ -107,7 +107,7 @@ public class MainActivity extends Activity {
         SharedPreferences preferences = PreferenceManager
                 .getDefaultSharedPreferences(MainActivity.this);
 
-        tempControllerSwitch.setEnabled(preferences.getBoolean("controllerOn",
+        tempControllerSwitch.setChecked(preferences.getBoolean("controllerOn",
                 false));
         maxCpuTemperaturePicker.setEnabled(preferences.getBoolean(
                 "controllerOn", false));
