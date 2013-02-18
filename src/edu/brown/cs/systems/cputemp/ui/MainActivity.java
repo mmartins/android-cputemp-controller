@@ -52,8 +52,7 @@ public class MainActivity extends Activity {
                                 TemperatureControllerService.class);
                         intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
                         intent.putExtra("enabled", isChecked);
-                        intent.putExtra("maxCpuTemp", Integer
-                                .toString(maxCpuTemperaturePicker.getValue()));
+                        intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
                         startService(intent);
                     }
                 });
@@ -70,8 +69,7 @@ public class MainActivity extends Activity {
                             TemperatureControllerService.class);
                     intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
                     intent.putExtra("enabled", tempControllerSwitch.isChecked());
-                    intent.putExtra("maxTemp", Integer
-                            .toString(maxCpuTemperaturePicker.getValue()));
+                    intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
 
                     startService(intent);
                 }
@@ -91,7 +89,7 @@ public class MainActivity extends Activity {
         SharedPreferences.Editor editor = preferences.edit();
 
         editor.putBoolean("controllerOn", tempControllerSwitch.isChecked());
-        editor.putInt("temperature", maxCpuTemperaturePicker.getValue());
+        editor.putInt("maxCpuTemp", maxCpuTemperaturePicker.getValue());
 
         editor.commit();
     }
@@ -111,7 +109,7 @@ public class MainActivity extends Activity {
                 false));
         maxCpuTemperaturePicker.setEnabled(preferences.getBoolean(
                 "controllerOn", false));
-        maxCpuTemperaturePicker.setValue(preferences.getInt("temperature",
+        maxCpuTemperaturePicker.setValue(preferences.getInt("maxCpuTemp",
                 TemperatureControllerService.DEFAULT_TEMPERATURE));
     }
 
