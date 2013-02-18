@@ -40,7 +40,8 @@ public class TemperatureControllerService extends Service {
     private KernelParameterIO kernelIO;
     private PendingIntent sender; // recurring UI update task
 
-    public static final String TEMP_CONTROL_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL";
+    public static final String TEMP_CONTROL_ENABLE_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_ENABLE";
+    public static final String TEMP_CONTROL_SET_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_SET";
     public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.UPDATE_UI";
 
     @Override
@@ -77,20 +78,23 @@ public class TemperatureControllerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand");
-        if (intent.getAction().matches(TEMP_CONTROL_ACTION)) {
+        if (intent.getAction().matches(TEMP_CONTROL_SET_ACTION)) {
+            maxTemperature = intent.getIntExtra("maxCpuTemp",
+                    DEFAULT_TEMPERATURE);
+        } else if (intent.getAction().matches(TEMP_CONTROL_ENABLE_ACTION)) {
             enabled = intent.getBooleanExtra("enabled", false);
             maxTemperature = intent.getIntExtra("maxCpuTemp",
                     DEFAULT_TEMPERATURE);
-
-            // Service failed to start correctly. Return immediately.
-            if (kernelIO == null)
-                return START_NOT_STICKY;
-
-            if (enabled)
-                startTemperatureController(maxTemperature);
-            else
-                stopTemperatureController();
         }
+
+        // Service failed to start correctly. Return immediately.
+        if (kernelIO == null)
+            return START_NOT_STICKY;
+
+        if (enabled)
+            startTemperatureController(maxTemperature);
+        else
+            stopTemperatureController();
 
         // We want this service to continue running until it is explicitly
         // stopped, so return sticky.

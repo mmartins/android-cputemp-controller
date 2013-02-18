@@ -50,7 +50,7 @@ public class MainActivity extends Activity {
                             boolean isChecked) {
                         Intent intent = new Intent(MainActivity.this,
                                 TemperatureControllerService.class);
-                        intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
+                        intent.setAction(TemperatureControllerService.TEMP_CONTROL_ENABLE_ACTION);
                         intent.putExtra("enabled", isChecked);
                         intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
                         startService(intent);
@@ -67,8 +67,7 @@ public class MainActivity extends Activity {
                 } else {
                     Intent intent = new Intent(MainActivity.this,
                             TemperatureControllerService.class);
-                    intent.setAction(TemperatureControllerService.TEMP_CONTROL_ACTION);
-                    intent.putExtra("enabled", tempControllerSwitch.isChecked());
+                    intent.setAction(TemperatureControllerService.TEMP_CONTROL_SET_ACTION);
                     intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
 
                     startService(intent);
