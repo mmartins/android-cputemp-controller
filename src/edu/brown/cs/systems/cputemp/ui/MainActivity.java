@@ -54,6 +54,8 @@ public class MainActivity extends Activity {
                         intent.putExtra("enabled", isChecked);
                         intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
                         startService(intent);
+                        maxCpuTemperaturePicker.setEnabled(true);
+                        applyButton.setEnabled(true);
                     }
                 });
 
