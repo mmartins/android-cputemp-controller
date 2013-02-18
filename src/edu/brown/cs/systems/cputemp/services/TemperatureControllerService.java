@@ -40,10 +40,10 @@ public class TemperatureControllerService extends Service {
     private KernelParameterIO kernelIO;
     private PendingIntent sender; // recurring UI update task
 
-    public static final String TEMP_CONTROL_ENABLE_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_ENABLE";
-    public static final String TEMP_CONTROL_SET_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_SET";
-    public static final String SERVICE_STOP_ACTION = "edu.brown.cs.systems.cputemp.SERVICE_STOP";
-    public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.UPDATE_UI";
+    public static final String TEMP_CONTROL_ENABLE_ACTION = "edu.brown.cs.systems.cputemp.action.TEMP_CONTROL_ENABLE";
+    public static final String TEMP_CONTROL_SET_ACTION = "edu.brown.cs.systems.cputemp.action.TEMP_CONTROL_SET";
+    public static final String SERVICE_STOP_ACTION = "edu.brown.cs.systems.cputemp.action.SERVICE_STOP";
+    public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.action.UPDATE_UI";
 
     @Override
     public void onCreate() {
@@ -104,10 +104,7 @@ public class TemperatureControllerService extends Service {
     }
 
     public void notifyServiceStop() {
-        Intent intent = new Intent(TemperatureControllerService.this,
-                MainActivity.class);
-
-        intent.setAction(SERVICE_STOP_ACTION);
+        Intent intent = new Intent(SERVICE_STOP_ACTION);
         sendBroadcast(intent);
     }
 
@@ -219,10 +216,7 @@ public class TemperatureControllerService extends Service {
         }
 
         private void updateInterface(int battTemp, int cpuTemp) {
-            Intent intent = new Intent(TemperatureControllerService.this,
-                    MainActivity.class);
-
-            intent.setAction(UPDATE_UI_ACTION);
+            Intent intent = new Intent(UPDATE_UI_ACTION);
             intent.putExtra("battTemp", battTemp);
             intent.putExtra("cpuTemp", cpuTemp);
             sendBroadcast(intent);

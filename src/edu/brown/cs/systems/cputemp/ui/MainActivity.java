@@ -107,8 +107,10 @@ public class MainActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        registerReceiver(broadcastReceiver, new IntentFilter(
-                TemperatureControllerService.UPDATE_UI_ACTION));
+        IntentFilter filter= new IntentFilter();
+        filter.addAction(TemperatureControllerService.UPDATE_UI_ACTION);
+        filter.addAction(TemperatureControllerService.SERVICE_STOP_ACTION);
+        registerReceiver(broadcastReceiver, filter);
 
         SharedPreferences preferences = PreferenceManager
                 .getDefaultSharedPreferences(MainActivity.this);
