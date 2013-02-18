@@ -111,6 +111,7 @@ public class MainActivity extends Activity {
                 "controllerOn", false));
         maxCpuTemperaturePicker.setValue(preferences.getInt("maxCpuTemp",
                 TemperatureControllerService.DEFAULT_TEMPERATURE));
+        applyButton.setEnabled(preferences.getBoolean("controllerOn", false));
     }
 
     /**
