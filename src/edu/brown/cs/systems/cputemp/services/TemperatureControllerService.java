@@ -42,6 +42,7 @@ public class TemperatureControllerService extends Service {
 
     public static final String TEMP_CONTROL_ENABLE_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_ENABLE";
     public static final String TEMP_CONTROL_SET_ACTION = "edu.brown.cs.systems.cputemp.TEMP_CONTROL_SET";
+    public static final String SERVICE_STOP_ACTION = "edu.brown.cs.systems.cputemp.SERVICE_STOP";
     public static final String UPDATE_UI_ACTION = "edu.brown.cs.systems.cputemp.UPDATE_UI";
 
     @Override
@@ -72,6 +73,7 @@ public class TemperatureControllerService extends Service {
         if (kernelIO != null)
             kernelIO.release();
 
+        notifyServiceStop();
         Log.d(TAG, "onDestroy()");
     }
 
@@ -99,6 +101,14 @@ public class TemperatureControllerService extends Service {
         // We want this service to continue running until it is explicitly
         // stopped, so return sticky.
         return START_STICKY;
+    }
+
+    public void notifyServiceStop() {
+        Intent intent = new Intent(TemperatureControllerService.this,
+                MainActivity.class);
+
+        intent.setAction(SERVICE_STOP_ACTION);
+        sendBroadcast(intent);
     }
 
     public boolean isIdleInjecting() {
