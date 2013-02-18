@@ -48,14 +48,20 @@ public class MainActivity extends Activity {
                 .setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                     public void onCheckedChanged(CompoundButton buttonView,
                             boolean isChecked) {
-                        Intent intent = new Intent(MainActivity.this,
-                                TemperatureControllerService.class);
-                        intent.setAction(TemperatureControllerService.TEMP_CONTROL_ENABLE_ACTION);
-                        intent.putExtra("enabled", isChecked);
-                        intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
-                        startService(intent);
-                        maxCpuTemperaturePicker.setEnabled(true);
-                        applyButton.setEnabled(true);
+                        if (isChecked) {
+                            Intent intent = new Intent(MainActivity.this,
+                                    TemperatureControllerService.class);
+                            intent.setAction(TemperatureControllerService.TEMP_CONTROL_ENABLE_ACTION);
+                            intent.putExtra("enabled", isChecked);
+                            intent.putExtra("maxCpuTemp",
+                                    maxCpuTemperaturePicker.getValue());
+                            startService(intent);
+                            maxCpuTemperaturePicker.setEnabled(true);
+                            applyButton.setEnabled(true);
+                        } else {
+                            maxCpuTemperaturePicker.setEnabled(false);
+                            applyButton.setEnabled(false);
+                        }
                     }
                 });
 
@@ -70,7 +76,8 @@ public class MainActivity extends Activity {
                     Intent intent = new Intent(MainActivity.this,
                             TemperatureControllerService.class);
                     intent.setAction(TemperatureControllerService.TEMP_CONTROL_SET_ACTION);
-                    intent.putExtra("maxCpuTemp", maxCpuTemperaturePicker.getValue());
+                    intent.putExtra("maxCpuTemp",
+                            maxCpuTemperaturePicker.getValue());
 
                     startService(intent);
                 }
@@ -130,6 +137,9 @@ public class MainActivity extends Activity {
                     : "NOT AVAILABLE");
             cpuTemperature.setText(cpuTemp != -1 ? Long.toString(cpuTemp)
                     : "NOT AVAILABLE");
+        } else if (intent.getAction().matches(
+                TemperatureControllerService.SERVICE_STOP_ACTION)) {
+            tempControllerSwitch.setChecked(false);
         }
     }
 
